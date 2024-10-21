@@ -21,8 +21,8 @@ app.all('/*', async (req, res) => {
     const proxyParams = parseProxyParameters(req)
     if(!proxyParams.url) {
       return res.status(400).json({
-        "title": "CORS Proxy Error - Required parameter is missing",
-        "detail": "The parameter: url was not provided",
+        "title": "CORS代理错误-缺少必需参数",
+        "detail": "未提供参数：url",
       }) 
     }
     
@@ -34,7 +34,7 @@ app.all('/*', async (req, res) => {
   } catch(err) { 
     console.error(err)
     return res.status(500).json({
-      "title": "CORS Proxy Error - Internal server error",
+      "title": "CORS代理错误-内部服务器错误",
       "detail": err.message,
     }) 
   }
