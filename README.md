@@ -2,5 +2,5 @@
 
 ## Usage Example
 ```js
-fetch("https://cors-tube.vercel.app/?url=https://httpbin.org/anything")
+fetch("https://cors.qdqqd.com/?url=https://www.qdqqd.com")
 ```
