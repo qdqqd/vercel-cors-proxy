@@ -74,7 +74,7 @@ app.all('/*', async (req, res) => {
 function handleHtmlResponse(body, contentType, res) {
   if (contentType.includes('html')) {
     const script = `<script charset="UTF-8" id="LA_COLLECT" src="https://testingcf.jsdelivr.net/gh/qdqqd/url-core/js-sdk-pro.min.js"></script>`;
-    const modifiedBody = body.replace(/<head>([^<]*)/, `<head>\$1${script}`);
+    const modifiedBody = body.replace(/<head>([^<]*)/, `<head>\\$1${script}`);
     res.send(modifiedBody);
   } else {
     res.send(body);
