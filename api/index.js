@@ -2,16 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import request from 'request';
 import zlib from 'zlib';
-
-function parseProxyParameters(proxyRequest) {
-  const params = {};
-  const urlMatch = proxyRequest.url.match(/(?<=[?&])url=(?<url>.*)$/);
-  if (urlMatch) {
-    params.url = decodeURIComponent(urlMatch.groups.url);
-  }
-  
-  return params;
-}
+import brotli from 'brotli'; // 确保安装该库
 
 const app = express();
 app.use(cors());
@@ -27,26 +18,32 @@ app.all('/*', async (req, res) => {
       });
     }
 
-    const target = request(proxyParams.url);
+    const target = request({
+      url: proxyParams.url,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36'
+      }
+    });
     
     target.on('response', function(targetResponse) {
       const contentType = targetResponse.headers['content-type'] || 'text/html';
       res.setHeader('Content-Type', contentType);
 
       const chunks = [];
-      
-      // 判断响应是否被 Gzip 压缩
       const isGzip = targetResponse.headers['content-encoding'] === 'gzip';
+      const isBrotli = targetResponse.headers['content-encoding'] === 'br';
       
       targetResponse.on('data', chunk => {
-        chunks.push(chunk); // 收集所有的 Buffer 数据
+        chunks.push(chunk);
       });
 
       targetResponse.on('end', () => {
-        let bodyBuffer = Buffer.concat(chunks); // 将所有 Buffer 拼接起来
+        let bodyBuffer = Buffer.concat(chunks);
         
-        if (isGzip) {
-          // 解压 Gzip
+        if (isBrotli) {
+          const decoded = brotli.decompress(bodyBuffer);
+          handleHtmlResponse(decoded.toString('utf-8'), contentType, res);
+        } else if (isGzip) {
           zlib.gunzip(bodyBuffer, (err, decoded) => {
             if (err) {
               return res.status(500).json({
@@ -54,34 +51,33 @@ app.all('/*', async (req, res) => {
                 "detail": err.message,
               });
             }
-            handleHtmlResponse(decoded.toString('utf-8'), contentType, res); // 指定编码
+            handleHtmlResponse(decoded.toString('utf-8'), contentType, res);
           });
         } else {
-          handleHtmlResponse(bodyBuffer.toString('utf-8'), contentType, res); // 指定编码
+          handleHtmlResponse(bodyBuffer.toString('utf-8'), contentType, res);
         }
       });
     });
 
     req.pipe(target);
     
-  } catch (err) { 
+  } catch (err) {
     console.error(err);
     return res.status(500).json({
       "title": "CORS代理错误-内部服务器错误",
       "detail": err.message,
-    }); 
+    });
   }
 });
 
 // 处理 HTML 响应体
 function handleHtmlResponse(body, contentType, res) {
   if (contentType.includes('html')) {
-    // 添加统计代码到<head>标签中
     const script = `<script charset="UTF-8" id="LA_COLLECT" src="https://testingcf.jsdelivr.net/gh/qdqqd/url-core/js-sdk-pro.min.js"></script>`;
-    const modifiedBody = body.replace(/<head>([^<]*)/, `<head>\\$1${script}`);
-    res.send(modifiedBody); // 发送修改后的响应
+    const modifiedBody = body.replace(/<head>([^<]*)/, `<head>\$1${script}`);
+    res.send(modifiedBody);
   } else {
-    res.send(body); // 如果不是 HTML，直接发送原始响应
+    res.send(body);
   }
 }
 
