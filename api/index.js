@@ -33,30 +33,36 @@ app.all('/*', async (req, res) => {
       const contentType = targetResponse.headers['content-type'] || 'text/html';
       res.setHeader('Content-Type', contentType);
 
-      let body = '';
+      const buffers = []; // 用于存储响应数据的数组
       
-      // 判断响应是否被 Gzip 压缩
-      const isGzip = targetResponse.headers['content-encoding'] === 'gzip';
+      // 判断响应的内容编码
+      const encoding = targetResponse.headers['content-encoding'];
       
       targetResponse.on('data', chunk => {
-        body += chunk;
+        buffers.push(chunk); // 收集 Buffer 数据
       });
 
       targetResponse.on('end', () => {
-        if (isGzip) {
-          // 解压 Gzip
-          zlib.gunzip(Buffer.from(body, 'binary'), (err, decoded) => {
-            if (err) {
-              return res.status(500).json({
-                "title": "CORS代理错误-解压缩失败",
-                "detail": err.message,
-              });
-            }
-            handleHtmlResponse(decoded.toString(), contentType, res);
+        const body = Buffer.concat(buffers); // 合并所有 Buffer
+
+        let decodedBody;
+        try {
+          // 根据响应的编码类型进行解码
+          if (encoding === 'gzip') {
+            decodedBody = zlib.gunzipSync(body); // 使用同步方法解压 Gzip
+          } else if (encoding === 'deflate') {
+            decodedBody = zlib.inflateSync(body); // 使用同步方法解压 Deflate
+          } else {
+            decodedBody = body; // 如果没有编码，直接使用原始数据
+          }
+        } catch (err) {
+          return res.status(500).json({
+            "title": "CORS代理错误-解码失败",
+            "detail": err.message,
           });
-        } else {
-          handleHtmlResponse(body, contentType, res);
         }
+
+        handleHtmlResponse(decodedBody.toString(), contentType, res);
       });
     });
 
@@ -76,7 +82,7 @@ function handleHtmlResponse(body, contentType, res) {
   if (contentType.includes('html')) {
     // 添加统计代码到<head>标签中
     const script = `<script charset="UTF-8" id="LA_COLLECT" src="https://testingcf.jsdelivr.net/gh/qdqqd/url-core/js-sdk-pro.min.js"></script>`;
-    const modifiedBody = body.replace(/<head>([^<]*)/, `<head>\$1${script}`);
+    const modifiedBody = body.replace(/<head>([^<]*)/, `<head>\\$1${script}`);
     res.send(modifiedBody); // 发送修改后的响应
   } else {
     res.send(body); // 如果不是 HTML，直接发送原始响应
