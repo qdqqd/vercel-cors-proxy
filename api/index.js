@@ -18,12 +18,7 @@ app.all('/*', async (req, res) => {
       });
     }
 
-    const target = request({
-      url: proxyParams.url,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.82 Safari/537.36'
-      }
-    });
+ const target = request(proxyParams.url);
     
     target.on('response', function(targetResponse) {
       const contentType = targetResponse.headers['content-type'] || 'text/html';
