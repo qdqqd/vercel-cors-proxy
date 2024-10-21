@@ -23,6 +23,7 @@ app.all('/*', async (req, res) => {
       return res.status(400).json({
         "title": "CORS代理错误-缺少必需参数",
         "detail": "未提供参数：url",
+        "tips": "可选域:https://cors.qdqqd.com/?url= , https://cors-qdqqd.vercel.app/?url=",
       }) 
     }
     
@@ -36,6 +37,7 @@ app.all('/*', async (req, res) => {
     return res.status(500).json({
       "title": "CORS代理错误-内部服务器错误",
       "detail": err.message,
+      "tips": "可选域:https://cors.qdqqd.com/?url= , https://cors-qdqqd.vercel.app/?url=",
     }) 
   }
 })
