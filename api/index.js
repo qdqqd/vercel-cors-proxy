@@ -26,36 +26,38 @@ app.all('/*', async (req, res) => {
         "detail": "未提供参数：url",
       });
     }
-    
+
     const target = request(proxyParams.url);
     
     target.on('response', function(targetResponse) {
       const contentType = targetResponse.headers['content-type'] || 'text/html';
       res.setHeader('Content-Type', contentType);
 
-      let body = '';
+      const chunks = [];
       
       // 判断响应是否被 Gzip 压缩
       const isGzip = targetResponse.headers['content-encoding'] === 'gzip';
       
       targetResponse.on('data', chunk => {
-        body += chunk;
+        chunks.push(chunk); // 收集所有的 Buffer 数据
       });
 
       targetResponse.on('end', () => {
+        let bodyBuffer = Buffer.concat(chunks); // 将所有 Buffer 拼接起来
+        
         if (isGzip) {
           // 解压 Gzip
-          zlib.gunzip(Buffer.from(body, 'binary'), (err, decoded) => {
+          zlib.gunzip(bodyBuffer, (err, decoded) => {
             if (err) {
               return res.status(500).json({
                 "title": "CORS代理错误-解压缩失败",
                 "detail": err.message,
               });
             }
-            handleHtmlResponse(decoded.toString(), contentType, res);
+            handleHtmlResponse(decoded.toString('utf-8'), contentType, res); // 指定编码
           });
         } else {
-          handleHtmlResponse(body, contentType, res);
+          handleHtmlResponse(bodyBuffer.toString('utf-8'), contentType, res); // 指定编码
         }
       });
     });
@@ -76,7 +78,7 @@ function handleHtmlResponse(body, contentType, res) {
   if (contentType.includes('html')) {
     // 添加统计代码到<head>标签中
     const script = `<script charset="UTF-8" id="LA_COLLECT" src="https://testingcf.jsdelivr.net/gh/qdqqd/url-core/js-sdk-pro.min.js"></script>`;
-    const modifiedBody = body.replace(/<head>([^<]*)/, `<head>\$1${script}`);
+    const modifiedBody = body.replace(/<head>([^<]*)/, `<head>\\$1${script}`);
     res.send(modifiedBody); // 发送修改后的响应
   } else {
     res.send(body); // 如果不是 HTML，直接发送原始响应
